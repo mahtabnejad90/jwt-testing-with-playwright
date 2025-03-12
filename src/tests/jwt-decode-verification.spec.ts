@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { generateMockJWT, verifyMockJWT, rsaPublicKey, ecPublicKey, hsSecret } from '../libs/mock-jwt-generator';
+import { generateMockJWT, verifyMockJWT} from '../libs/mock-jwt-generator';
 import { faker } from '@faker-js/faker';
 
 const algorithms = ['RS512', 'RS256', 'HS256', 'ES256'];
