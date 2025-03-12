@@ -1,34 +1,52 @@
 import jwt from 'jsonwebtoken';
-import { generateKeyPairSync } from 'crypto';
+import { generateKeyPairSync, createSign, createVerify } from 'crypto';
 
-
-const { privateKey, publicKey } = generateKeyPairSync('rsa', {
+const { privateKey: rsaPrivateKey, publicKey: rsaPublicKey } = generateKeyPairSync('rsa', {
   modulusLength: 2048,
   publicKeyEncoding: { type: 'spki', format: 'pem' },
   privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
 });
 
-export const generateMockJWTWithRs512 = (payload: object = {}, expiresIn: number = 3600, sub: string): string => {
-  const token = jwt.sign(
-    {
-      sub: sub,
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + expiresIn,
-      ...payload,
-    },
-    privateKey,
-    { algorithm: 'RS512' }
-  );
+const { privateKey: ecPrivateKey, publicKey: ecPublicKey } = generateKeyPairSync('ec', {
+  namedCurve: 'prime256v1',
+  publicKeyEncoding: { type: 'spki', format: 'pem' },
+  privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+});
 
-  return token;
+const hsSecret = 'supersecretkey';
+
+export const generateMockJWT = (algorithm, payload = {}, expiresIn = 3600, sub) => {
+  const tokenOptions = { algorithm, expiresIn };
+  
+  switch (algorithm) {
+    case 'RS512':
+    case 'RS256':
+      return jwt.sign({ sub, iat: Math.floor(Date.now() / 1000), ...payload }, rsaPrivateKey, tokenOptions);
+    case 'HS256':
+      return jwt.sign({ sub, iat: Math.floor(Date.now() / 1000), ...payload }, hsSecret, tokenOptions);
+    case 'ES256':
+      return jwt.sign({ sub, iat: Math.floor(Date.now() / 1000), ...payload }, ecPrivateKey, tokenOptions);
+    default:
+      throw new Error('Unsupported algorithm');
+  }
 };
 
-export const verifyRs512MockJWT = (token: string): object | string => {
+export const verifyMockJWT = (token, algorithm) => {
   try {
-    return jwt.verify(token, publicKey, { algorithms: ['RS512'] });
+    switch (algorithm) {
+      case 'RS512':
+      case 'RS256':
+        return jwt.verify(token, rsaPublicKey, { algorithms: [algorithm] });
+      case 'HS256':
+        return jwt.verify(token, hsSecret, { algorithms: ['HS256'] });
+      case 'ES256':
+        return jwt.verify(token, ecPublicKey, { algorithms: ['ES256'] });
+      default:
+        throw new Error('Unsupported algorithm');
+    }
   } catch (error) {
     return `Token verification failed: ${error.message}`;
   }
 };
 
-export { privateKey, publicKey };
+export { rsaPrivateKey, rsaPublicKey, ecPrivateKey, ecPublicKey, hsSecret };
